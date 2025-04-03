@@ -1,0 +1,42 @@
+{
+  "name": "imthefeedo_bot",
+  "version": "1.0.0",
+  "description": "Feedo Telegram Bot",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun -r dotenv/config ./dist/index.js",
+    "watch": "bun --watch ./src/index.ts",
+    "build": "tsc --project ./",
+    "node-start": "node -r dotenv/config ./dist/index.js",
+    "node-watch": "npx nodemon --watch './**/*.{ts,graphql}' --exec 'npm run node-watch-arg'",
+    "node-watch-arg": "node --experimental-specifier-resolution=node --loader ts-node/esm -r dotenv/config -r tsconfig-paths/register src/index.ts",
+    "node-dev": "tsc-watch --onSuccess \"npm run node-watch\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mleandrojr/imthefeedo_bot.git"
+  },
+  "author": "Marcos Leandro",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mleandrojr/imthefeedo_bot/issues"
+  },
+  "homepage": "https://github.com/mleandrojr/imthefeedo_bot",
+  "dependencies": {
+    "@prisma/client": "^6.5.0",
+    "canvas": "^3.1.0",
+    "dotenv": "^10.0.0",
+    "express": "^4.21.2",
+    "html-entities": "^2.6.0",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "prisma": "^6.5.0",
+    "ts-node": "^10.9.2",
+    "tsc-watch": "^4.6.2",
+    "tsconfig-paths": "^3.15.0",
+    "typescript": "^5.7.3"
+  }
+}

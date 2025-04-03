@@ -1,0 +1,9 @@
+*.DS_Store
+*.idea
+dist/*
+package-lock.json
+.env
+!log/.gitkeep
+log/*
+node_modules
+bun.lockb

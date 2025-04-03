@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model chats {
+  id                Int                 @id @default(autoincrement()) @db.UnsignedInt
+  chat_id           BigInt              @unique(map: "idx_chats_chat_id")
+  title             String              @db.VarChar(250)
+  type              String              @db.VarChar(50)
+  joined            Boolean             @default(true)
+  feeds_subscribers feeds_subscribers[]
+}
+
+model feeds {
+  id                Int                 @id @default(autoincrement()) @db.UnsignedInt
+  title             String              @db.VarChar(250)
+  link              String              @unique(map: "idx_link") @db.VarChar(250)
+  description       String?             @db.Text
+  image             String?             @db.VarChar(250)
+  language          String?             @db.VarChar(10)
+  feeds_items       feeds_items[]
+  feeds_subscribers feeds_subscribers[]
+}
+
+model feeds_items {
+  id                Int                 @id @default(autoincrement()) @db.UnsignedInt
+  feed_id           Int                 @db.UnsignedInt
+  title             String              @db.VarChar(250)
+  description       String?             @db.Text
+  link              String              @db.VarChar(250)
+  publish_date      Int                 @db.UnsignedInt
+  feeds             feeds               @relation(fields: [feed_id], references: [id], onUpdate: Restrict, map: "fk_feeds_items_feeds")
+  feeds_subscribers feeds_subscribers[]
+
+  @@unique([feed_id, link], map: "idx_uq_feed_id_link")
+  @@index([feed_id], map: "idx_feed_id")
+}
+
+model feeds_subscribers {
+  id                        Int          @id @default(autoincrement()) @db.UnsignedInt
+  chat_id                   Int          @db.UnsignedInt
+  feed_id                   Int          @db.UnsignedInt
+  last_notification_item_id Int?         @db.UnsignedInt
+  add_date                  Int          @db.UnsignedInt
+  update_date               Int?         @db.UnsignedInt
+  last_notification_date    Int?         @db.UnsignedInt
+  status                    Boolean
+  chats                     chats        @relation(fields: [chat_id], references: [id], onUpdate: Restrict, map: "fk_feeds_subscribers_chats")
+  feeds                     feeds        @relation(fields: [feed_id], references: [id], onUpdate: Restrict, map: "fk_feeds_subscribers_feeds")
+  feeds_items               feeds_items? @relation(fields: [last_notification_item_id], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "fk_feeds_subscribers_feeds_items")
+
+  @@unique([chat_id, feed_id], map: "idx_uq_chat_id_feed_id")
+  @@index([feed_id], map: "fk_feeds_subscribers_feeds")
+  @@index([last_notification_item_id], map: "fk_feeds_subscribers_feeds_items")
+}
