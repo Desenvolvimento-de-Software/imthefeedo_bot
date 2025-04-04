@@ -94,11 +94,11 @@ export default class NotifcateNewEntry implements Iinterval {
     private sendMessage = async (feed: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
 
         if (!feed.feeds_items || feed.feeds_items.length === 0) {
-            return Promise.reject(`No items found for feed ${feed.link}`);
+            return Promise.resolve();
         }
 
         if (feed.feeds_items[0].id === subscriber.last_notification_item_id) {
-            return Promise.reject(`Already notified for item ${feed.feeds_items[0].id} :: ${feed.link}`);
+            return Promise.resolve();
         }
 
         let message = `<b>${feed.title}</b>\n\n`;
@@ -146,6 +146,11 @@ export default class NotifcateNewEntry implements Iinterval {
      * @param subscriber
      */
     private updateSubscriber = async (feed: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
+
+        if (!feed.feeds_items || feed.feeds_items.length === 0) {
+            return Promise.resolve();
+        }
+
         const prisma = new PrismaClient();
         await prisma.feeds_subscribers.update({
             data: { last_notification_item_id: feed.feeds_items[0].id },
