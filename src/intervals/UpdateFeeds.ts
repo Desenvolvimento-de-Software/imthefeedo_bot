@@ -60,27 +60,15 @@ export default class UpdateFeeds implements Iinterval {
      */
     private readonly run = async (): Promise<void> => {
 
-        try {
-
-            const feeds = await getFeeds();
-            if (feeds.length === 0) {
-                return;
-            }
-
-            for (const feed of feeds) {
-                const feedData = await getFeedDataByLink(feed.link);
-                await this.updateFeed(feed, feedData);
-            }
-
-        } catch (err: any) {
-            Log.save(err.message, err.stack)
-
-        } finally {
-            this.interval = setTimeout(this.run, 10 * 60 * 1000); // 10 minutes
+        const feeds = await getFeeds();
+        for (const feed of feeds) {
+            this.updateFeed(feed);
         }
+
+        this.interval = setTimeout(this.run, 10 * 60 * 1000); // 10 minutes
     }
 
-    /**
+        /**
      * populates the feed with the data.
      *
      * @author Marcos Leandro
@@ -89,7 +77,9 @@ export default class UpdateFeeds implements Iinterval {
      * @param feed
      * @param feedData
      */
-    private async updateFeed(feed: feeds, feedData: Parser.Output<Parser.Item>): Promise<void> {
-        await populateFeed(feed, feedData.items);
+    private async updateFeed(feed: feeds): Promise<void> {
+        getFeedDataByLink(feed.link).then(feedData => (
+            populateFeed(feed, feedData.items)
+        ));
     }
 }

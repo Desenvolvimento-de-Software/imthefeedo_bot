@@ -61,24 +61,10 @@ export default class NotifcateNewEntry implements Iinterval {
      * @since  2025-02-25
      */
     private readonly run = async (): Promise<void> => {
-
-        try {
-
-            const feeds = await getFeedsWithItems();
-            if (feeds.length === 0) {
-                return;
-            }
-
-            feeds.forEach((feed: Record<string, any>) => {
-                this.notifyFeedSubscribers(feed);
-            });
-
-        } catch (err: any) {
-            Log.save(err.message, err.stack)
-
-        } finally {
-            this.interval = setTimeout(this.run, 10 * 60 * 1000); // 10 minutes
-        }
+        const feeds = await getFeedsWithItems();
+        feeds.forEach((feed: Record<string, any>) => {
+            this.notifyFeedSubscribers(feed);
+        });
     }
 
     /**
@@ -92,7 +78,7 @@ export default class NotifcateNewEntry implements Iinterval {
     private readonly notifyFeedSubscribers = async (feed: Record<string, any>): Promise<void> => {
         const subscribers = await getSubscribers(feed);
         subscribers.forEach(async subscriber => {
-            await this.sendMessage(feed, subscriber).then(_ => this.updateSubscriber(feed, subscriber));
+            await this.sendMessage(feed, subscriber).then(_ => this.updateSubscriber(feed, subscriber)).catch();
         });
     };
 
@@ -107,8 +93,12 @@ export default class NotifcateNewEntry implements Iinterval {
      */
     private sendMessage = async (feed: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
 
+        if (!feed.feeds_items || feed.feeds_items.length === 0) {
+            return Promise.reject(`No items found for feed ${feed.link}`);
+        }
+
         if (feed.feeds_items[0].id === subscriber.last_notification_item_id) {
-            return;
+            return Promise.reject(`Already notified for item ${feed.feeds_items[0].id} :: ${feed.link}`);
         }
 
         let message = `<b>${feed.title}</b>\n\n`;
@@ -116,17 +106,33 @@ export default class NotifcateNewEntry implements Iinterval {
         message += `${feed.feeds_items[0].description}\n\n`;
         message += `${feed.feeds_items[0].link}`;
 
+        message = message
+            .replace(/<\/?p>\s+/g, "")
+            .replace(/<\/?br>\s+/g, "\n")
+            .replace(/<br\s*\/?>/g, "\n")
+            .replace(/(<\/?)strong>/g, "$1b>")
+            .trim();
+
         const chat: chats|null = await getChatById(subscriber.chat_id);
         if (!chat) {
-            return;
+            return Promise.reject();
         }
 
         const sendMessage = new SendMessage();
-        await sendMessage
+        const response = await sendMessage
             .setChatId(parseInt(chat!.chat_id.toString()))
             .setText(message)
             .setOptions({ parse_mode: "HTML" })
             .post();
+
+        try {
+
+            const result = await response.json();
+            return result.ok ? Promise.resolve() : Promise.reject(JSON.stringify(result));
+
+        } catch (err) {
+            return Promise.reject(err.message);
+        }
     };
 
     /**

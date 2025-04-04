@@ -36,7 +36,7 @@ export const getFeeds = async (): Promise<feeds[]> => {
 
     } catch (error: any) {
         Log.save(error.message, error.stack);
-        throw new Error(error.message);
+        return [];
 
     } finally {
         await prisma.$disconnect();
@@ -51,7 +51,7 @@ export const getFeeds = async (): Promise<feeds[]> => {
  *
  * @return All the feeds with items.
  */
-export const getFeedsWithItems = async (): Promise<Record<string, any>> => {
+export const getFeedsWithItems = async (): Promise<Record<string, any>[]> => {
 
     try {
 
@@ -68,7 +68,7 @@ export const getFeedsWithItems = async (): Promise<Record<string, any>> => {
 
     } catch (error: any) {
         Log.save(error.message, error.stack);
-        throw new Error(error.message);
+        return [];
 
     } finally {
         await prisma.$disconnect();
@@ -243,7 +243,8 @@ export const createFeed = async (link: string, feedData: Parser.Output<Parser.It
  */
 export const populateFeed = async (feed: feeds, items: Parser.Item[]): Promise<void> => {
 
-    for (const item of items) {
+    const feedItems = items.reverse();
+    for (const item of feedItems) {
         const publishDate = new Date(item.pubDate ?? item.isoDate ?? Date.now()).getTime();
         await prisma.feeds_items.upsert({
             where: {

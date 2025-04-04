@@ -6,4 +6,4 @@ package-lock.json
 !log/.gitkeep
 log/*
 node_modules
-bun.lockb
+bun.lock*
