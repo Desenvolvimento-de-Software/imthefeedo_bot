@@ -65,7 +65,7 @@ export default class UpdateFeeds implements Iinterval {
             this.updateFeed(feed);
         }
 
-        this.interval = setTimeout(this.run, 60 * 1000); // 1 minute
+        this.interval = setTimeout(this.run, 5 * 60 * 1000); // 5 minutes
     }
 
         /**
