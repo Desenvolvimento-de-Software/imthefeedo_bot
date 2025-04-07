@@ -60,6 +60,8 @@ export default class UpdateFeeds implements Iinterval {
      */
     private readonly run = async (): Promise<void> => {
 
+        Log.save("Updating feeds.");
+
         const feeds = await getFeeds();
         for (const feed of feeds) {
             this.updateFeed(feed);

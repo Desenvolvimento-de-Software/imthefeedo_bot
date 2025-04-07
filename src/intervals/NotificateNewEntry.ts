@@ -61,6 +61,9 @@ export default class NotifcateNewEntry implements Iinterval {
      * @since  2025-02-25
      */
     private readonly run = async (): Promise<void> => {
+
+        Log.save("Notificating new entries.");
+
         const feeds = await getFeedsWithItems();
         feeds.forEach((feed: Record<string, any>) => {
             this.notifyFeedSubscribers(feed);
@@ -107,9 +110,9 @@ export default class NotifcateNewEntry implements Iinterval {
         message += `${feed.feeds_items[0].link}`;
 
         message = message
-            .replace(/<\/?p>\s+/g, "")
-            .replace(/<\/?br>\s+/g, "\n")
-            .replace(/<br\s*\/?>/g, "\n")
+            .replace(/<\/?p>\s*/g, "")
+            .replace(/<\/?br>\s+/g, "")
+            .replace(/<br\s*\/?>/g, "")
             .replace(/(<\/?)strong>/g, "$1b>")
             .trim();
 
@@ -128,9 +131,15 @@ export default class NotifcateNewEntry implements Iinterval {
         try {
 
             const result = await response.json();
-            return result.ok ? Promise.resolve() : Promise.reject(JSON.stringify(result));
+            if (result.ok) {
+                return Promise.resolve();
+            }
+
+            Log.error(`Error on send message: ${feed.feeds_items[0].id} ` + JSON.stringify(result));
+            return Promise.reject(JSON.stringify(result));
 
         } catch (err) {
+            Log.error(`Error on send message: ${feed.feeds_items[0].id}` + JSON.stringify(err));
             return Promise.reject(err.message);
         }
     };
