@@ -58,7 +58,12 @@ export const getFeedsWithItems = async (): Promise<Record<string, any>[]> => {
         const feeds = await prisma.feeds.findMany({
             include: {
                 feeds_items: {
-                    orderBy: { publish_date: "desc" }
+                    where: {
+                        publish_date: {
+                            gte: Math.floor((Date.now() - 1000 * 60 * 60 * 24) / 1000)
+                        }
+                    },
+                    orderBy: { publish_date: "asc" }
                 }
             },
             orderBy: { id: "asc" }
@@ -151,18 +156,13 @@ export const getFeedByLink = async (link: string): Promise<feeds|null> => {
  */
 export const getFeedDataByLink = async (link: string): Promise<Parser.Output<Parser.Item>> => {
 
-    try {
+    const parser = new Parser();
+    return parser.parseURL(link).then((result: Parser.Output<Parser.Item>) => {
+        return result;
 
-        const parser = new Parser();
-        return await parser.parseURL(link);
-
-    } catch (error: any) {
-        Log.save(error.message, error.stack);
-        throw new Error(error.message);
-
-    } finally {
-        await prisma.$disconnect();
-    }
+    }).catch((err: any) => {
+        Log.save(`Error parsing feed ${link}: ${err.message}`, err.stack);
+    });
 };
 
 /**

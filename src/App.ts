@@ -85,6 +85,11 @@ export default class App {
         this.initializeMiddlewares();
         this.initializeControllers();
         this.initializeIntervals();
+
+        const webhookActive = process.env.TELEGRAM_WEBHOOK_ACTIVE?.toLowerCase() === "true";
+        const debug = process.env.DEBUG?.toLowerCase() === "true";
+
+        (debug || webhookActive) && this.listen();
     }
 
     /**

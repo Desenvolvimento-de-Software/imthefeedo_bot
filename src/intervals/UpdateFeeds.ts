@@ -9,11 +9,10 @@
  * @license  GPLv3 <http://www.gnu.org/licenses/gpl-3.0.en.html>
  */
 
-import { getFeedDataByLink, getFeeds, populateFeed } from "utils/Feeds";
 import { feeds } from "@prisma/client";
+import { getFeedDataByLink, getFeeds, populateFeed } from "utils/Feeds";
 import Iinterval from "interfaces/Iinterval";
 import Log from "helpers/Log";
-import Parser from "rss-parser";
 
 export default class UpdateFeeds implements Iinterval {
 
@@ -59,19 +58,15 @@ export default class UpdateFeeds implements Iinterval {
      * @since  2025-02-25
      */
     private readonly run = async (): Promise<void> => {
-
-        Log.save("Updating feeds.");
-
+        this.interval = setTimeout(this.run, 5 * 60 * 1000); // 5 minutes
         const feeds = await getFeeds();
         for (const feed of feeds) {
             this.updateFeed(feed);
         }
-
-        this.interval = setTimeout(this.run, 5 * 60 * 1000); // 5 minutes
     }
 
-        /**
-     * populates the feed with the data.
+    /**
+     * Populates the feed with the data.
      *
      * @author Marcos Leandro
      * @since  2025-02-25
@@ -82,6 +77,9 @@ export default class UpdateFeeds implements Iinterval {
     private async updateFeed(feed: feeds): Promise<void> {
         getFeedDataByLink(feed.link).then(feedData => (
             populateFeed(feed, feedData.items)
-        ));
+
+        )).catch((error) => {
+            Log.save(`Error updating feed ${feed.link}: ${error.message}`)
+        });
     }
 }

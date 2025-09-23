@@ -54,6 +54,18 @@ export default class TelegramBotApi {
     }
 
     /**
+     * Returns the payload as a string.
+     *
+     * @author Marcos Leandro
+     * @since  2025-09-09
+     *
+     * @return {string}
+     */
+    public getPayload(): string {
+        return JSON.stringify(this.payload);
+    }
+
+    /**
      * Sets the Telegram Bot token.
      *
      * @author Marcos Leandro

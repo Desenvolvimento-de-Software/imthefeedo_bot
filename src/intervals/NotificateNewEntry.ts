@@ -9,11 +9,11 @@
  * @license  GPLv3 <http://www.gnu.org/licenses/gpl-3.0.en.html>
  */
 
+import { chats, feeds_subscribers, PrismaClient } from "@prisma/client";
 import { getFeedsWithItems } from "utils/Feeds";
 import { getSubscribers } from "utils/Subscribers";
 import { getChatById } from "utils/Chats";
 import SendMessage from "libraries/telegram/resources/SendMessage";
-import { chats, feeds_subscribers, PrismaClient } from "@prisma/client";
 import Iinterval from "interfaces/Iinterval";
 import Log from "helpers/Log";
 
@@ -61,9 +61,7 @@ export default class NotifcateNewEntry implements Iinterval {
      * @since  2025-02-25
      */
     private readonly run = async (): Promise<void> => {
-
-        Log.save("Notificating new entries.");
-
+        this.interval = setTimeout(this.run, 5 * 60 * 1000); // 5 minutes
         const feeds = await getFeedsWithItems();
         feeds.forEach((feed: Record<string, any>) => {
             this.notifyFeedSubscribers(feed);
@@ -81,9 +79,38 @@ export default class NotifcateNewEntry implements Iinterval {
     private readonly notifyFeedSubscribers = async (feed: Record<string, any>): Promise<void> => {
         const subscribers = await getSubscribers(feed);
         subscribers.forEach(async subscriber => {
-            await this.sendMessage(feed, subscriber).then(_ => this.updateSubscriber(feed, subscriber)).catch();
+
+            try {
+                await this.sendMessages(feed, subscriber);
+
+            } catch (err: any) {
+                Log.error(err, true);
+            }
         });
     };
+
+    /**
+     * Sends the messages, if applicable.
+     *
+     * @author Marcos Leandro
+     * @since  2025-09-09
+     *
+     * @param feed
+     * @param subscriber
+     */
+    private sendMessages = async (feed: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
+
+        feed.feeds_items.forEach((item: Record<string, any>) => {
+            if (item.id <= (subscriber?.last_notification_item_id || 0)) {
+                return;
+            }
+
+            console.log("Trying to send item", item.id, "to subscriber", subscriber.id);
+            this.sendMessage(feed, item, subscriber).then(() => {
+                this.updateSubscriber(item, subscriber);
+            }).catch();
+        });
+    }
 
     /**
      * Send the message, if applicable.
@@ -92,28 +119,39 @@ export default class NotifcateNewEntry implements Iinterval {
      * @since  2025-02-25
      *
      * @param feed
+     * @param item
      * @param subscriber
      */
-    private sendMessage = async (feed: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
+    private sendMessage = async (feed: Record<string, any>, item: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
 
-        if (!feed.feeds_items || feed.feeds_items.length === 0) {
-            return Promise.resolve();
-        }
+        const description = item.description
+            .trim()
+            .replace("<br>", "\n")
+            .replace(/([*_])/g, '\\$1')
+            .replace(/<\/?[^>]+(>|$)/g, "");
 
-        if (feed.feeds_items[0].id === subscriber.last_notification_item_id) {
-            return Promise.resolve();
-        }
-
-        let message = `<b>${feed.title}</b>\n\n`;
-        message += `<b>${feed.feeds_items[0].title}</b>\n`;
-        message += `${feed.feeds_items[0].description}\n\n`;
-        message += `${feed.feeds_items[0].link}`;
+        let message = `*${feed.title}*\n\n`;
+        message += `*${item.title}*\n`;
+        message += `${description}\n\n`;
+        message += `${item.link}`;
 
         message = message
+            .replace(/–/g, "-")
+            .replace(/ /g, " ")
+            .replace(/([\[\]()~>#+\-=|{}.!])/g, '\\$1')
             .replace(/<\/?p>\s*/g, "")
-            .replace(/<\/?br>\s+/g, "")
-            .replace(/<br\s*\/?>/g, "")
-            .replace(/(<\/?)strong>/g, "$1b>")
+            .replace(/<\/?strong>\s*/g, "*")
+            .replace(/<\/?b>\s*/g, "*")
+            .replace(/<\/?i>\s*/g, "_")
+            .replace(/<\/?em>\s*/g, "_")
+            .replace(/<\/?u>\s*/g, "__")
+            .replace(/<\/?br[\s\/]+>\s+/g, "\n")
+            .replace(/<\/?code>\s*/g, "`")
+            .replace(/<\/?pre>\s*/g, "```")
+            .replace(/<\/?a href="([^"]+)">\s*/g, "[$1]($1)")
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
             .trim();
 
         const chat: chats|null = await getChatById(subscriber.chat_id);
@@ -125,7 +163,7 @@ export default class NotifcateNewEntry implements Iinterval {
         const response = await sendMessage
             .setChatId(parseInt(chat!.chat_id.toString()))
             .setText(message)
-            .setOptions({ parse_mode: "HTML" })
+            .setOptions({ parse_mode: "markdownv2" })
             .post();
 
         try {
@@ -135,11 +173,11 @@ export default class NotifcateNewEntry implements Iinterval {
                 return Promise.resolve();
             }
 
-            Log.error(`Error on send message: ${feed.feeds_items[0].id} ` + JSON.stringify(result));
+            Log.save(`Error while sending message: ${item.id} :\n` + JSON.stringify(result), sendMessage.getPayload(), true, "error");
             return Promise.reject(JSON.stringify(result));
 
-        } catch (err) {
-            Log.error(`Error on send message: ${feed.feeds_items[0].id}` + JSON.stringify(err));
+        } catch (err: any) {
+            Log.save(`Error while sending message: ${item.id} `, err.message, true, "error");
             return Promise.reject(err.message);
         }
     };
@@ -150,19 +188,13 @@ export default class NotifcateNewEntry implements Iinterval {
      * @author Marcos Leandro
      * @since  2025-02-25
      *
-     * @param prisma
-     * @param feed
+     * @param item
      * @param subscriber
      */
-    private updateSubscriber = async (feed: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
-
-        if (!feed.feeds_items || feed.feeds_items.length === 0) {
-            return Promise.resolve();
-        }
-
+    private updateSubscriber = async (item: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
         const prisma = new PrismaClient();
         await prisma.feeds_subscribers.update({
-            data: { last_notification_item_id: feed.feeds_items[0].id },
+            data: { last_notification_item_id: item.id },
             where: { id: subscriber.id }
         });
 
