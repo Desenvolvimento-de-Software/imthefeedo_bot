@@ -61,7 +61,8 @@ export default class NotifcateNewEntry implements Iinterval {
      * @since  2025-02-25
      */
     private readonly run = async (): Promise<void> => {
-        this.interval = setTimeout(this.run, 5 * 60 * 1000); // 5 minutes
+        this.interval = setTimeout(this.run, 1 * 60 * 1000); // 1 minute
+        Log.save(`[${this.interval}] Notificating...`);
         const feeds = await getFeedsWithItems();
         feeds.forEach((feed: Record<string, any>) => {
             this.notifyFeedSubscribers(feed);
@@ -100,15 +101,17 @@ export default class NotifcateNewEntry implements Iinterval {
      */
     private sendMessages = async (feed: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
 
-        feed.feeds_items.forEach((item: Record<string, any>) => {
+        feed.feeds_items.forEach((item: Record<string, any>, idx: number) => {
             if (item.id <= (subscriber?.last_notification_item_id || 0)) {
                 return;
             }
 
-            console.log("Trying to send item", item.id, "to subscriber", subscriber.id);
-            this.sendMessage(feed, item, subscriber).then(() => {
-                this.updateSubscriber(item, subscriber);
-            }).catch();
+            /* We're adding a timeout to avoid API flooding. */
+            setTimeout(() => {
+                this.sendMessage(feed, item, subscriber).then(() => {
+                    this.updateSubscriber(item, subscriber);
+                }).catch();
+            }, idx * 1000);
         });
     }
 
@@ -124,35 +127,10 @@ export default class NotifcateNewEntry implements Iinterval {
      */
     private sendMessage = async (feed: Record<string, any>, item: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
 
-        const description = item.description
-            .trim()
-            .replace("<br>", "\n")
-            .replace(/([*_])/g, '\\$1')
-            .replace(/<\/?[^>]+(>|$)/g, "");
-
-        let message = `*${feed.title}*\n\n`;
-        message += `*${item.title}*\n`;
-        message += `${description}\n\n`;
+        let message = `<b>${this.parseContent(feed.title)}</b>\n\n`;
+        message += `<b>${this.parseContent(item.title)}</b>\n\n`;
+        message += `${this.parseContent(item.description)}\n\n`;
         message += `${item.link}`;
-
-        message = message
-            .replace(/–/g, "-")
-            .replace(/ /g, " ")
-            .replace(/([\[\]()~>#+\-=|{}.!])/g, '\\$1')
-            .replace(/<\/?p>\s*/g, "")
-            .replace(/<\/?strong>\s*/g, "*")
-            .replace(/<\/?b>\s*/g, "*")
-            .replace(/<\/?i>\s*/g, "_")
-            .replace(/<\/?em>\s*/g, "_")
-            .replace(/<\/?u>\s*/g, "__")
-            .replace(/<\/?br[\s\/]+>\s+/g, "\n")
-            .replace(/<\/?code>\s*/g, "`")
-            .replace(/<\/?pre>\s*/g, "```")
-            .replace(/<\/?a href="([^"]+)">\s*/g, "[$1]($1)")
-            .replace(/&amp;/g, "&")
-            .replace(/&lt;/g, "<")
-            .replace(/&gt;/g, ">")
-            .trim();
 
         const chat: chats|null = await getChatById(subscriber.chat_id);
         if (!chat) {
@@ -163,8 +141,11 @@ export default class NotifcateNewEntry implements Iinterval {
         const response = await sendMessage
             .setChatId(parseInt(chat!.chat_id.toString()))
             .setText(message)
-            .setOptions({ parse_mode: "markdownv2" })
-            .post();
+            .setOptions({ parse_mode: "HTML" })
+            .post().catch(err => {
+                Log.save(`Error while sending message: ${item.id} `, err.message, true, "error");
+                return Promise.reject(err);
+            });
 
         try {
 
@@ -200,4 +181,30 @@ export default class NotifcateNewEntry implements Iinterval {
 
         prisma.$disconnect();
     };
+
+    /**
+     * Parses the content, escaping characters if needed.
+     *
+     * @author Marcos Leandro
+     * @since  2025-10-07
+     *
+     * @param message
+     *
+     * @return string
+     */
+    private parseContent(message: string) {
+        return message
+            .replace(/–/g, "-")
+            .replace(/ /g, " ")
+            .replace(/<\/?p>\s*/g, "")
+            .replace(/<strong>\s*/g, "<b>")
+            .replace(/<\/strong>\s*/g, "</b>")
+            .replace(/<\/?i>\s*/g, "_")
+            .replace(/<?br[\s\/]+>\s+/g, "\n")
+            .replace(/<\/?[^>]+(>|$)/g, "")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("&", "&amp;")
+            .trim();
+    }
 }
