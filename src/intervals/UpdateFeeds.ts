@@ -58,7 +58,8 @@ export default class UpdateFeeds implements Iinterval {
      * @since  2025-02-25
      */
     private readonly run = async (): Promise<void> => {
-        this.interval = setTimeout(this.run, 5 * 60 * 1000); // 5 minutes
+        this.interval = setTimeout(this.run, 1 * 60 * 1000); // 1 minute
+        Log.save(`[${this.interval}] Updating feeds...`);
         const feeds = await getFeeds();
         for (const feed of feeds) {
             this.updateFeed(feed);
