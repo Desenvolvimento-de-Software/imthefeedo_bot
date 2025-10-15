@@ -10,7 +10,7 @@
  */
 
 import { feeds } from "@prisma/client";
-import { getFeedDataByLink, getFeeds, populateFeed } from "utils/Feeds";
+import { getFeedDataByLink, getFeeds, getFeedActiveSubscribers, populateFeed } from "utils/Feeds";
 import Iinterval from "interfaces/Iinterval";
 import Log from "helpers/Log";
 
@@ -76,6 +76,12 @@ export default class UpdateFeeds implements Iinterval {
      * @param feedData
      */
     private async updateFeed(feed: feeds): Promise<void> {
+
+        const subscribers = await getFeedActiveSubscribers(feed);
+        if (subscribers.length === 0) {
+            return;
+        }
+
         getFeedDataByLink(feed.link).then(feedData => (
             populateFeed(feed, feedData.items)
 

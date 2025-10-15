@@ -9,7 +9,7 @@
  * @license  GPLv3 <http://www.gnu.org/licenses/gpl-3.0.en.html>
  */
 
-import { feeds, feeds_items, PrismaClient } from "@prisma/client";
+import { feeds, feeds_items, feeds_subscribers, PrismaClient } from "@prisma/client";
 import { decode } from "html-entities";
 import Log from "helpers/Log";
 import Parser from "rss-parser";
@@ -172,6 +172,8 @@ export const getFeedDataByLink = async (link: string): Promise<Parser.Output<Par
  * @since  2025-04-02
  *
  * @param feed
+ *
+ * @return Promise<feeds_items[]>
  */
 export const getFeedItems = async (feed: feeds): Promise<feeds_items[]> => {
 
@@ -180,6 +182,35 @@ export const getFeedItems = async (feed: feeds): Promise<feeds_items[]> => {
         const items = await prisma.feeds_items.findMany({
             where: { feed_id: feed.id },
             orderBy: { publish_date: "desc" }
+        });
+
+        return items;
+
+    } catch (error: any) {
+        Log.save(error.message, error.stack);
+        throw new Error(error.message);
+
+    } finally {
+        await prisma.$disconnect();
+    }
+};
+
+/**
+ * Returns the feed active subscribers.
+ *
+ * @author Marcos Leandro
+ * @since  2025-10-15
+ *
+ * @param feed
+ *
+ * @return Promise<feeds_subscribers[]>
+ */
+export const getFeedActiveSubscribers = async (feed: feeds): Promise<feeds_subscribers[]> => {
+
+    try {
+
+        const items = await prisma.feeds_subscribers.findMany({
+            where: { feed_id: feed.id, status: true }
         });
 
         return items;

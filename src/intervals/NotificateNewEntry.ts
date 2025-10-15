@@ -108,7 +108,7 @@ export default class NotifcateNewEntry implements Iinterval {
 
             /* We're adding a timeout to avoid API flooding. */
             setTimeout(() => {
-                this.sendMessage(feed, item, subscriber).then(() => {
+                this.sendMessage(feed, item, subscriber).then(async () => {
                     await this.updateSubscriber(item, subscriber);
                 }).catch();
             }, idx * 1000);
