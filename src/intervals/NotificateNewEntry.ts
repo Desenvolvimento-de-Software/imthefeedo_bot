@@ -109,7 +109,7 @@ export default class NotifcateNewEntry implements Iinterval {
             /* We're adding a timeout to avoid API flooding. */
             setTimeout(() => {
                 this.sendMessage(feed, item, subscriber).then(() => {
-                    this.updateSubscriber(item, subscriber);
+                    await this.updateSubscriber(item, subscriber);
                 }).catch();
             }, idx * 1000);
         });
@@ -200,6 +200,7 @@ export default class NotifcateNewEntry implements Iinterval {
             .replace(/<strong>\s*/g, "<b>")
             .replace(/<\/strong>\s*/g, "</b>")
             .replace(/<?br[\s\/]+>\s+/g, "\n")
+            .replace(/<\/?[^>]+(>|$)/g, "")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("&", "&amp;")
