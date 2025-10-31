@@ -80,13 +80,9 @@ export default class NotifcateNewEntry implements Iinterval {
     private readonly notifyFeedSubscribers = async (feed: Record<string, any>): Promise<void> => {
         const subscribers = await getSubscribers(feed);
         subscribers.forEach(async subscriber => {
-
-            try {
-                await this.sendMessages(feed, subscriber);
-
-            } catch (err: any) {
+            this.sendMessages(feed, subscriber).catch((err: any) => {
                 Log.error(err, true);
-            }
+            });
         });
     };
 
@@ -101,18 +97,21 @@ export default class NotifcateNewEntry implements Iinterval {
      */
     private sendMessages = async (feed: Record<string, any>, subscriber: feeds_subscribers): Promise<void> => {
 
-        feed.feeds_items.forEach((item: Record<string, any>, idx: number) => {
+        for (let i = 0, length = feed.feeds_items.length; i < length; i++) {
+            const item = feed.feeds_items[i];
             if (item.id <= (subscriber?.last_notification_item_id || 0)) {
-                return;
+                continue;
             }
 
             /* We're adding a timeout to avoid API flooding. */
             setTimeout(() => {
                 this.sendMessage(feed, item, subscriber).then(async () => {
                     await this.updateSubscriber(item, subscriber);
-                }).catch();
-            }, idx * 1000);
-        });
+                }).catch((err: any) => {
+                    Log.error(err, true);
+                });
+            }, i * 1000);
+        }
     }
 
     /**
