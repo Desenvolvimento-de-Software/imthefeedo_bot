@@ -10,7 +10,7 @@
  */
 
 import { feeds } from "@prisma/client";
-import { getFeedDataByLink, getFeeds, getFeedActiveSubscribers, populateFeed } from "utils/Feeds";
+import { getFeedDataByLink, getActiveFeeds, populateFeed } from "utils/Feeds";
 import Iinterval from "interfaces/Iinterval";
 import Log from "helpers/Log";
 
@@ -60,7 +60,7 @@ export default class UpdateFeeds implements Iinterval {
     private readonly run = async (): Promise<void> => {
         this.interval = setTimeout(this.run, 1 * 60 * 1000); // 1 minute
         Log.save(`[${this.interval}] Updating feeds...`);
-        const feeds = await getFeeds();
+        const feeds = await getActiveFeeds();
         for (const feed of feeds) {
             this.updateFeed(feed);
         }
@@ -76,12 +76,6 @@ export default class UpdateFeeds implements Iinterval {
      * @param feedData
      */
     private async updateFeed(feed: feeds): Promise<void> {
-
-        const subscribers = await getFeedActiveSubscribers(feed);
-        if (subscribers.length === 0) {
-            return;
-        }
-
         getFeedDataByLink(feed.link).then(feedData => (
             populateFeed(feed, feedData.items)
 

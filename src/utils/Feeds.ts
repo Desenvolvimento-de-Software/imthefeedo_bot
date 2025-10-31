@@ -44,6 +44,40 @@ export const getFeeds = async (): Promise<feeds[]> => {
 };
 
 /**
+ * Returns the feeds that has some active subscriber.
+ *
+ * @author Marcos Leandro
+ * @since  2025-10-27
+ *
+ * @return All the active feeds.
+ */
+export const getActiveFeeds = async(): Promise<feeds[]> => {
+
+    try {
+
+        const feeds = await prisma.feeds.findMany({
+            where: {
+                feeds_subscribers: {
+                    some: {
+                        status: true
+                    }
+                }
+            },
+            orderBy: { id: "asc" }
+        });
+
+        return feeds;
+
+    } catch (error: any) {
+        Log.save(error.message, error.stack);
+        return [];
+
+    } finally {
+        await prisma.$disconnect();
+    }
+};
+
+/**
  * Returns the feeds with it's items.
  *
  * @author Marcos Leandro
